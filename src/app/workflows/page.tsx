@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Navigation } from "@/components/Navigation";
 import { formatDateTime } from "@/lib/utils";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import {
   Workflow,
   Play,
@@ -15,9 +27,8 @@ import {
   Zap,
   ArrowRight,
   ShieldCheck,
-  ChevronDown,
   Sparkles,
-  Bot,
+  X,
 } from "lucide-react";
 
 export default function WorkflowsPage() {
@@ -103,12 +114,16 @@ export default function WorkflowsPage() {
           name: wfName.trim(),
           description: wfDesc.trim() || undefined,
           triggerEvent: wfTrigger,
-          conditions: [{ field: "customer.totalSpend", operator: "gte", value: 100 }],
-          actionSteps: [
-            { type: "delay", days: 2 },
-            { type: "ai_action", action: "generate_followup_message" },
-            { type: "human_approval" },
-            { type: "send_communication", channel: "email" },
+          steps: [
+            {
+              type: "action",
+              action: "ai_draft_message",
+              config: { template: "Thank you for your order! We appreciate your business." },
+            },
+            {
+              type: "action",
+              action: "require_human_approval",
+            },
           ],
         }),
       });
@@ -125,166 +140,122 @@ export default function WorkflowsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="min-h-screen bg-slate-50/60 pb-16">
       <Navigation />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Workflow Automation Engine
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Event-Driven Workflow Automation
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Event-driven CRM pipelines with condition rules, delays, AI generation, and human approval gates.
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Automated multi-step rules triggered by WooCommerce orders, churn indicators, and human approval checkpoints.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
+          <div className="flex items-center gap-2.5">
+            <Button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-400 transition-colors shadow-sm"
+              variant="accent"
+              size="sm"
+              className="gap-2 shadow-sm"
             >
-              <Plus className="w-4 h-4" /> Create Workflow
-            </button>
-            <button
+              <Plus className="w-4 h-4" />
+              <span>Create Workflow</span>
+            </Button>
+            <Button
               onClick={fetchWorkflows}
-              className="p-2 text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 shadow-sm"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 bg-white"
+              title="Refresh Workflows"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
         </div>
 
-        {/* Feedback Alert */}
+        {/* Feedback Banner */}
         {triggerSuccessMsg && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-800 flex items-center gap-2 animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{triggerSuccessMsg}</span>
           </div>
         )}
 
         {/* Workflows Cards */}
-        <div className="space-y-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {workflows.map((wf) => {
             let steps: any[] = [];
             try {
-              steps = JSON.parse(wf.actionSteps);
+              steps = typeof wf.steps === "string" ? JSON.parse(wf.steps) : wf.steps || [];
             } catch {}
 
             return (
-              <div
-                key={wf.id}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:border-slate-300 transition-colors"
-              >
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                        <Workflow className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-bold text-slate-900">{wf.name}</h2>
-                        <span className="text-xs text-slate-500">{wf.description}</span>
-                      </div>
+              <Card key={wf.id} className="p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">{wf.name}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">{wf.description || "Automated customer retention rule."}</p>
                     </div>
+                    <Badge variant={wf.isActive ? "success" : "secondary"} className="capitalize text-[10px]">
+                      {wf.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
 
-                    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="font-semibold text-slate-400 uppercase">Trigger:</span>
-                      <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 font-mono font-medium">
-                        {wf.triggerEvent}
+                  {/* Trigger & Condition Badges */}
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] gap-1 bg-amber-50/60 border-amber-200 text-amber-900">
+                      <Zap className="w-3 h-3 text-amber-600" />
+                      Trigger: {wf.triggerEvent}
+                    </Badge>
+                    {wf.executions?.length > 0 && (
+                      <span className="text-[11px] text-slate-400">
+                        {wf.executions.length} runs executed
                       </span>
-                      <span className="text-slate-300">•</span>
-                      <span className="font-semibold text-slate-400 uppercase">Executions:</span>
-                      <span className="font-bold text-slate-700">{wf.executionCount} completed</span>
-                    </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      disabled={triggeringId === wf.id}
-                      onClick={() => handleTriggerTest(wf)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
-                    >
-                      <Play className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                      {triggeringId === wf.id ? "Triggering..." : "Test Trigger"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Pipeline Steps Flow */}
-                <div className="mt-6 pt-6 border-t border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    Execution Pipeline
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="px-3 py-2 rounded-xl bg-slate-100 text-xs font-medium text-slate-800 border border-slate-200">
-                      ⚡ Event Trigger: <span className="font-mono font-bold">{wf.triggerEvent}</span>
-                    </div>
-
-                    {steps.map((step: any, idx: number) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
-                        <div
-                          className={`px-3 py-2 rounded-xl text-xs font-semibold border ${
-                            step.type === "delay"
-                              ? "bg-blue-50 text-blue-800 border-blue-200"
-                              : step.type === "ai_action"
-                              ? "bg-purple-50 text-purple-800 border-purple-200"
-                              : step.type === "human_approval"
-                              ? "bg-amber-50 text-amber-800 border-amber-300"
-                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          }`}
-                        >
-                          {step.type === "delay" && `⏳ Wait ${step.days || 3} days`}
-                          {step.type === "ai_action" && `✨ AI: ${step.action || "Generate draft"}`}
-                          {step.type === "human_approval" && "🛡️ Human Approval Gate"}
-                          {step.type === "send_communication" && `📤 Dispatch (${step.channel || "email"})`}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recent Execution History */}
-                {wf.executions?.length > 0 && (
-                  <div className="mt-6 pt-4 border-t border-slate-100">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                      Recent Execution History
-                    </h3>
-                    <div className="space-y-1.5">
-                      {wf.executions.map((exec: any) => (
-                        <div
-                          key={exec.id}
-                          className="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-100"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                exec.status === "completed"
-                                  ? "bg-emerald-500"
-                                  : exec.status === "waiting_approval"
-                                  ? "bg-amber-500"
-                                  : "bg-blue-500"
-                              }`}
-                            />
-                            <span className="font-semibold text-slate-800">
-                              {exec.customer?.firstName} {exec.customer?.lastName || "Customer"}
-                            </span>
-                            <span className="text-slate-400">({exec.customer?.email})</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="capitalize font-medium text-slate-600">
-                              {exec.status.replace("_", " ")}
-                            </span>
-                            <span className="text-slate-400">{formatDateTime(exec.createdAt)}</span>
-                          </div>
+                  {/* Steps Chain */}
+                  <div className="mt-4 pt-3.5 border-t border-slate-100">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+                      Execution Steps Chain
+                    </span>
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      {steps.map((st: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-1.5">
+                          <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200/70 text-[11px]">
+                            {st.action || st.type}
+                          </span>
+                          {idx < steps.length - 1 && (
+                            <ArrowRight className="w-3 h-3 text-slate-400" />
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    Human approval gate enabled
+                  </span>
+                  <Button
+                    onClick={() => handleTriggerTest(wf)}
+                    disabled={triggeringId === wf.id}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 h-8 text-xs bg-white"
+                  >
+                    <Play className="w-3 h-3 text-amber-500 fill-amber-500" />
+                    <span>{triggeringId === wf.id ? "Executing..." : "Run Test"}</span>
+                  </Button>
+                </div>
+              </Card>
             );
           })}
         </div>
@@ -292,77 +263,85 @@ export default function WorkflowsPage() {
         {/* Modal: Create Workflow */}
         {showCreateModal && (
           <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-1">Create Event-Driven Workflow</h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Configure a responsive automation rule for customer and order events.
-              </p>
-
-              <form onSubmit={handleCreateWorkflow} className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Workflow Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. VIP High Spender Thank You"
-                    value={wfName}
-                    onChange={(e) => setWfName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Trigger Event
-                  </label>
-                  <select
-                    value={wfTrigger}
-                    onChange={(e) => setWfTrigger(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="order.completed">order.completed (Delivered / Fulfilled)</option>
-                    <option value="customer.churn_risk_high">customer.churn_risk_high (Inactivity alert)</option>
-                    <option value="customer.created">customer.created (New signup/first purchase)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Optional workflow description..."
-                    value={wfDesc}
-                    onChange={(e) => setWfDesc(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600">
-                  <span className="font-semibold block mb-1 text-slate-800">Standard Guardrail Pipeline:</span>
-                  Condition Check → 2-Day Delay → AI Personalized Draft → Mandatory Human Approval → Dispatch.
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
+            <Card className="w-full max-w-lg shadow-xl animate-in fade-in zoom-in-95 duration-150">
+              <form onSubmit={handleCreateWorkflow}>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <div>
+                    <CardTitle className="text-base font-bold">Create New Workflow Rule</CardTitle>
+                    <CardDescription className="text-xs">
+                      Define automated trigger events and actions
+                    </CardDescription>
+                  </div>
+                  <Button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-slate-400"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Workflow Name
+                    </label>
+                    <Input
+                      type="text"
+                      required
+                      placeholder="e.g. VIP Order Thank You & Feedback"
+                      value={wfName}
+                      onChange={(e) => setWfName(e.target.value)}
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Trigger Event
+                    </label>
+                    <select
+                      value={wfTrigger}
+                      onChange={(e) => setWfTrigger(e.target.value)}
+                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-950"
+                    >
+                      <option value="order.completed">order.completed (WooCommerce Order Placed)</option>
+                      <option value="order.delivered">order.delivered (Order Fulfilled)</option>
+                      <option value="customer.churn_risk_high">customer.churn_risk_high (Inactivity &gt; 90 days)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Brief note on this rule's retention purpose..."
+                      value={wfDesc}
+                      onChange={(e) => setWfDesc(e.target.value)}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs leading-relaxed focus:outline-none focus:ring-1 focus:ring-slate-950"
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
                   >
                     Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-sm"
-                  >
-                    Save Workflow
-                  </button>
-                </div>
+                  </Button>
+                  <Button type="submit" size="sm" className="h-8 text-xs gap-1.5">
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Workflow</span>
+                  </Button>
+                </CardFooter>
               </form>
-            </div>
+            </Card>
           </div>
         )}
       </main>

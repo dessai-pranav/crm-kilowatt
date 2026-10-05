@@ -4,21 +4,24 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Navigation } from "@/components/Navigation";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   MessageSquare,
   CheckCircle2,
   XCircle,
-  Clock,
   Send,
   AlertTriangle,
-  User,
   RefreshCw,
   Edit3,
-  ChevronRight,
   Plus,
   Mail,
   Phone,
-  MessageCircle,
+  ShieldCheck,
+  ChevronRight,
+  X,
 } from "lucide-react";
 
 export default function CommunicationsPage() {
@@ -107,11 +110,9 @@ export default function CommunicationsPage() {
           id,
           action: "reject",
           operator: "Operator",
-          reason: "Rejected from operator approvals dashboard",
         }),
       });
       if (res.ok) {
-        setSelectedItem(null);
         fetchApprovals();
       }
     } catch (err) {
@@ -121,7 +122,7 @@ export default function CommunicationsPage() {
     }
   };
 
-  const handleCreateOutreach = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomerId || !composerContent.trim()) return;
 
@@ -134,8 +135,9 @@ export default function CommunicationsPage() {
           channel: composerChannel,
           subject: composerSubject.trim() || undefined,
           content: composerContent.trim(),
-          requiresApproval: requireApproval,
-          actor: "Operator Composer",
+          direction: "outbound",
+          status: requireApproval ? "pending_approval" : "completed",
+          actor: "Operator",
         }),
       });
       if (res.ok) {
@@ -152,339 +154,350 @@ export default function CommunicationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="min-h-screen bg-slate-50/60 pb-16">
       <Navigation />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-slate-900">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                 Human Review & Approval Queue
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+              <Badge variant="warning" className="text-xs font-semibold">
                 {approvals.length} Pending Review
-              </span>
+              </Badge>
             </div>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               AI-generated customer communications and automated workflow drafts require human confirmation prior to dispatch.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
+          <div className="flex items-center gap-2.5">
+            <Button
               onClick={() => setShowComposer(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-400 transition-colors shadow-sm"
+              variant="accent"
+              size="sm"
+              className="gap-2 shadow-sm"
             >
-              <Plus className="w-4 h-4" /> New Message Draft
-            </button>
-            <button
+              <Plus className="w-4 h-4" />
+              <span>Compose Outreach</span>
+            </Button>
+            <Button
               onClick={fetchApprovals}
-              className="p-2 text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 shadow-sm"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 bg-white"
               title="Refresh Queue"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
         </div>
 
         {/* Pending Approvals List */}
         {loading ? (
-          <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-400">
-            Checking approval queue...
-          </div>
+          <Card className="p-12 text-center text-slate-400">
+            <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-slate-400" />
+            <p className="text-xs">Checking approval queue...</p>
+          </Card>
         ) : approvals.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+          <Card className="p-12 text-center shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
               <CheckCircle2 className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">All Clear! No Pending Approvals</h3>
-            <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+            <h3 className="text-base font-bold text-slate-900">All Clear! No Pending Approvals</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
               Any high-impact AI drafts or automated workflow actions requiring human review will appear here before dispatch.
             </p>
-          </div>
+          </Card>
         ) : (
           <div className="space-y-4">
             {approvals.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-2xl border border-amber-200/80 shadow-sm p-6 hover:border-amber-300 transition-colors"
-              >
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+              <Card key={item.id} className="p-6 shadow-sm border-amber-200/70 hover:border-amber-300 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   {/* Customer Info */}
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
+                    <div className="w-10 h-10 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
                       {item.customer?.firstName?.[0] || item.customer?.email?.[0] || "C"}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Link
                           href={`/customers/${item.customer?.id}`}
-                          className="font-bold text-base text-slate-900 hover:text-amber-600 transition-colors"
+                          className="font-bold text-sm text-slate-900 hover:text-amber-600 transition-colors"
                         >
                           {item.customer?.firstName} {item.customer?.lastName}
                         </Link>
-                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-100 text-purple-800">
+                        <Badge variant="secondary" className="text-[10px]">
                           {item.customer?.segment || "Customer"}
-                        </span>
+                        </Badge>
                         {item.customer?.churnRisk === "high" && (
-                          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-100 text-rose-800">
+                          <Badge variant="destructive" className="text-[10px]">
                             High Churn Risk
-                          </span>
+                          </Badge>
                         )}
                       </div>
-                      <span className="text-xs text-slate-400 block">{item.customer?.email}</span>
+                      <span className="text-xs text-slate-400 block mt-0.5">{item.customer?.email}</span>
                     </div>
                   </div>
 
                   {/* Channel & Timestamp */}
                   <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <span className="px-2 py-1 rounded-md bg-slate-100 font-bold uppercase text-slate-700">
+                    <Badge variant="outline" className="uppercase text-[10px]">
                       {item.channel}
-                    </span>
+                    </Badge>
                     <span>Queued {formatDateTime(item.createdAt)}</span>
                   </div>
                 </div>
 
                 {/* Draft Content Box */}
-                <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+                <div className="mt-4 p-4 rounded-xl bg-slate-50/80 border border-slate-200/70 text-xs sm:text-sm">
                   {item.subject && (
-                    <div className="text-sm font-bold text-slate-900 mb-1">
+                    <div className="font-semibold text-slate-900 mb-1">
                       Subject: {item.subject}
                     </div>
                   )}
-                  <p className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                  <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
                     {item.content}
                   </p>
                 </div>
 
                 {/* Actions Bar */}
-                <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-xs text-slate-500">
-                    Guardrail check passed • Operator authorization required
+                <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>AI Guardrail checked • Operator authorization required to dispatch</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
+                    <Button
                       onClick={() => {
                         setSelectedItem(item);
                         setEditedContent(item.content);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 h-8 text-xs bg-white"
                     >
-                      <Edit3 className="w-3.5 h-3.5" /> Edit Draft
-                    </button>
-                    <button
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit Draft</span>
+                    </Button>
+                    <Button
                       disabled={processingId === item.id}
                       onClick={() => handleReject(item.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors disabled:opacity-50"
+                      variant="destructive"
+                      size="sm"
+                      className="gap-1.5 h-8 text-xs"
                     >
-                      <XCircle className="w-3.5 h-3.5" /> Reject
-                    </button>
-                    <button
+                      <XCircle className="w-3.5 h-3.5" />
+                      <span>Reject</span>
+                    </Button>
+                    <Button
                       disabled={processingId === item.id}
                       onClick={() => handleApprove(item.id)}
-                      className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
+                      variant="default"
+                      size="sm"
+                      className="gap-1.5 h-8 text-xs bg-slate-900"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Approve & Dispatch
-                    </button>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Approve & Dispatch</span>
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
 
-        {/* Modal: Edit & Approve */}
+        {/* Modal: Edit & Approve Dialog */}
         {selectedItem && (
           <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Edit & Approve Message
-              </h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Recalibrate AI-generated copy before releasing to recipient.
-              </p>
-
-              {selectedItem.subject && (
-                <div className="mb-3">
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Subject Line
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value={selectedItem.subject}
-                    className="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600"
-                  />
+            <Card className="w-full max-w-xl shadow-xl animate-in fade-in zoom-in-95 duration-150">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div>
+                  <CardTitle className="text-base font-bold">Edit Communication Draft</CardTitle>
+                  <CardDescription className="text-xs">
+                    Recipient: {selectedItem.customer?.firstName} {selectedItem.customer?.lastName} ({selectedItem.customer?.email})
+                  </CardDescription>
                 </div>
-              )}
-
-              <div className="mb-4">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Message Content
-                </label>
-                <textarea
-                  rows={6}
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
+                <Button
                   onClick={() => setSelectedItem(null)}
-                  className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-slate-400"
                 >
-                  Cancel
-                </button>
-                <button
-                  disabled={processingId === selectedItem.id}
-                  onClick={() => handleApprove(selectedItem.id, editedContent)}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-sm"
-                >
-                  Save & Approve Dispatch
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal: New Message Composer */}
-        {showComposer && (
-          <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Compose Outbound Communication
-              </h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Draft a message to a customer or queue for approval.
-              </p>
-
-              <form onSubmit={handleCreateOutreach} className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Select Target Customer
-                  </label>
-                  <select
-                    value={selectedCustomerId}
-                    onChange={(e) => setSelectedCustomerId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.firstName} {c.lastName} ({c.email}) - {c.segment}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+                  <X className="w-4 h-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {selectedItem.subject && (
                   <div>
                     <label className="text-xs font-semibold text-slate-700 block mb-1">
-                      Channel
+                      Subject
                     </label>
-                    <select
-                      value={composerChannel}
-                      onChange={(e) => setComposerChannel(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    >
-                      <option value="email">Email</option>
-                      <option value="sms">SMS</option>
-                      <option value="call">Call Note</option>
-                    </select>
+                    <Input
+                      type="text"
+                      defaultValue={selectedItem.subject}
+                      disabled
+                      className="bg-slate-50 text-xs"
+                    />
                   </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
-                      Template Preset
-                    </label>
-                    <select
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "vip") {
-                          setComposerSubject("VIP Exclusive Early Access");
-                          setComposerContent("Hi there,\n\nAs one of our top VIP customers, we are excited to give you early access to our next product launch.");
-                        } else if (val === "winback") {
-                          setComposerSubject("We miss you at Kilowatt + 15% discount");
-                          setComposerContent("Hi there,\n\nWe haven't seen you in a while! Here is an exclusive 15% discount code for your next order: RECONNECT15.");
-                        } else if (val === "feedback") {
-                          setComposerSubject("How was your recent order experience?");
-                          setComposerContent("Hi there,\n\nWe wanted to follow up and see how your equipment is performing. Do you need any assistance?");
-                        }
-                      }}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    >
-                      <option value="">Custom Message</option>
-                      <option value="vip">VIP Early Access</option>
-                      <option value="winback">15% Winback Offer</option>
-                      <option value="feedback">Post-Purchase Feedback</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Subject Line
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Subject..."
-                    value={composerSubject}
-                    onChange={(e) => setComposerSubject(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
+                )}
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
                     Message Body
                   </label>
                   <textarea
-                    rows={5}
-                    placeholder="Write message content..."
-                    value={composerContent}
-                    onChange={(e) => setComposerContent(e.target.value)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                    rows={6}
+                    value={editedContent}
+                    onChange={(e) => setEditedContent(e.target.value)}
+                    className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs leading-relaxed focus:outline-none focus:ring-1 focus:ring-slate-950"
                   />
                 </div>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <Button onClick={() => setSelectedItem(null)} variant="outline" size="sm" className="h-8 text-xs">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleApprove(selectedItem.id, editedContent)}
+                  disabled={processingId === selectedItem.id}
+                  size="sm"
+                  className="h-8 text-xs gap-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Approve & Dispatch</span>
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+        )}
 
-                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
-                  <input
-                    type="checkbox"
-                    id="requireApproval"
-                    checked={requireApproval}
-                    onChange={(e) => setRequireApproval(e.target.checked)}
-                    className="rounded text-amber-600 focus:ring-amber-500"
-                  />
-                  <label htmlFor="requireApproval" className="font-medium cursor-pointer">
-                    Enforce AI Guardrail: Place in Human Approval Queue before actual dispatch
-                  </label>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button
+        {/* Modal: Compose New Message */}
+        {showComposer && (
+          <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <Card className="w-full max-w-xl shadow-xl animate-in fade-in zoom-in-95 duration-150">
+              <form onSubmit={handleSendMessage}>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <div>
+                    <CardTitle className="text-base font-bold">New Customer Outreach Draft</CardTitle>
+                    <CardDescription className="text-xs">
+                      Compose personalized messages with operator approval gating
+                    </CardDescription>
+                  </div>
+                  <Button
                     type="button"
                     onClick={() => setShowComposer(false)}
-                    className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-slate-400"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Recipient Customer
+                    </label>
+                    <select
+                      value={selectedCustomerId}
+                      onChange={(e) => setSelectedCustomerId(e.target.value)}
+                      className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-950"
+                    >
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.firstName} {c.lastName} ({c.email}) - {c.segment}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">
+                        Channel
+                      </label>
+                      <select
+                        value={composerChannel}
+                        onChange={(e) => setComposerChannel(e.target.value)}
+                        className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-950"
+                      >
+                        <option value="email">Email</option>
+                        <option value="sms">SMS</option>
+                        <option value="call">Phone Call Note</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">
+                        Approval Policy
+                      </label>
+                      <div className="flex items-center h-9 gap-2">
+                        <input
+                          type="checkbox"
+                          id="requireAppr"
+                          checked={requireApproval}
+                          onChange={(e) => setRequireApproval(e.target.checked)}
+                          className="rounded border-slate-300 text-slate-900 focus:ring-slate-950"
+                        />
+                        <label htmlFor="requireAppr" className="text-xs text-slate-600">
+                          Route through review queue
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Subject
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Special VIP Loyalty Perk for Solar Energy..."
+                      value={composerSubject}
+                      onChange={(e) => setComposerSubject(e.target.value)}
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Content
+                    </label>
+                    <textarea
+                      rows={5}
+                      required
+                      placeholder="Type your message draft here..."
+                      value={composerContent}
+                      onChange={(e) => setComposerContent(e.target.value)}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs leading-relaxed focus:outline-none focus:ring-1 focus:ring-slate-950"
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    onClick={() => setShowComposer(false)}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
                     disabled={submittingMessage || !composerContent.trim()}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
                   >
-                    {submittingMessage
-                      ? "Submitting..."
-                      : requireApproval
-                      ? "Submit to Approval Queue"
-                      : "Send Immediately"}
-                  </button>
-                </div>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{submittingMessage ? "Queueing..." : requireApproval ? "Queue for Approval" : "Send Directly"}</span>
+                  </Button>
+                </CardFooter>
               </form>
-            </div>
+            </Card>
           </div>
         )}
       </main>

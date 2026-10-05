@@ -4,6 +4,10 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { Navigation } from "@/components/Navigation";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   ArrowLeft,
   ShoppingBag,
@@ -18,10 +22,11 @@ import {
   Tag,
   Plus,
   Trash2,
-  CheckCircle2,
-  ExternalLink,
+  ChevronRight,
   Bot,
   Zap,
+  RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 
 export default function CustomerProfilePage({
@@ -41,6 +46,9 @@ export default function CustomerProfilePage({
   // New Tag state
   const [newTag, setNewTag] = useState("");
   const [addingTag, setAddingTag] = useState(false);
+
+  // Generating AI Insight
+  const [generatingAI, setGeneratingAI] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -98,12 +106,12 @@ export default function CustomerProfilePage({
     if (!newTag.trim() || !customer) return;
     const currentTags = customer.tags ? JSON.parse(customer.tags) : [];
     if (!currentTags.includes(newTag.trim())) {
-      const updatedTags = [...currentTags, newTag.trim()];
+      const updated = [...currentTags, newTag.trim()];
       try {
         const res = await fetch(`/api/customers/${id}`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ tags: updatedTags }),
+          body: JSON.stringify({ tags: updated }),
         });
         if (res.ok) {
           setNewTag("");
@@ -116,12 +124,31 @@ export default function CustomerProfilePage({
     }
   };
 
+  const handleGenerateAI = async () => {
+    setGeneratingAI(true);
+    try {
+      const res = await fetch(`/api/ai/insights`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ customerId: id }),
+      });
+      if (res.ok) {
+        await fetchProfile();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-50/60 pb-16">
         <Navigation />
-        <div className="max-w-7xl mx-auto px-4 py-16 text-center text-slate-500">
-          Loading Customer 360 profile...
+        <div className="max-w-7xl mx-auto px-4 py-20 text-center text-slate-500">
+          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-slate-400" />
+          <p className="text-sm">Loading Customer 360 Profile...</p>
         </div>
       </div>
     );
@@ -129,13 +156,13 @@ export default function CustomerProfilePage({
 
   if (!customer) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-50/60 pb-16">
         <Navigation />
-        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-          <p className="text-slate-600">Customer profile not found.</p>
-          <Link href="/customers" className="mt-4 inline-block text-amber-600 font-semibold hover:underline">
-            ← Back to Customer Directory
-          </Link>
+        <div className="max-w-7xl mx-auto px-4 py-20 text-center">
+          <h2 className="text-lg font-bold text-slate-900">Customer Not Found</h2>
+          <Button asChild variant="outline" className="mt-4">
+            <Link href="/customers">Return to Directory</Link>
+          </Button>
         </div>
       </div>
     );
@@ -150,51 +177,68 @@ export default function CustomerProfilePage({
     } catch {}
   }
 
+  const getSegmentVariant = (segment: string) => {
+    switch (segment) {
+      case "VIP":
+        return "vip";
+      case "Loyal":
+        return "loyal";
+      case "Promising":
+        return "promising";
+      case "At-Risk":
+        return "warning";
+      case "Dormant":
+        return "destructive";
+      default:
+        return "secondary";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="min-h-screen bg-slate-50/60 pb-16">
       <Navigation />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Back Link */}
-        <div className="mb-6">
+        <div>
           <Link
             href="/customers"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to Customers
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Customers
           </Link>
         </div>
 
-        {/* Profile Header Banner */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-8">
+        {/* Profile Header Card */}
+        <Card className="p-6 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               {customer.avatarUrl ? (
                 <img
                   src={customer.avatarUrl}
                   alt=""
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-slate-200 shadow-sm"
+                  className="w-14 h-14 rounded-xl object-cover border border-slate-200 shadow-sm"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-sm">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white font-extrabold text-xl flex items-center justify-center shadow-sm">
                   {customer.firstName?.[0] || customer.email[0].toUpperCase()}
                 </div>
               )}
               <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-slate-900">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                     {customer.firstName} {customer.lastName}
                   </h1>
-                  <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                  <Badge variant={getSegmentVariant(customer.segment)}>
                     {customer.segment} Segment
-                  </span>
+                  </Badge>
                   {customer.churnRisk === "high" && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
-                      <Flame className="w-3.5 h-3.5 text-rose-600" /> High Churn Risk
-                    </span>
+                    <Badge variant="destructive" className="gap-1">
+                      <Flame className="w-3 h-3" /> High Churn Risk
+                    </Badge>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-slate-500">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
                   <span>{customer.email}</span>
                   {customer.phone && <span>• {customer.phone}</span>}
                   {customer.wooCustomerId && (
@@ -205,116 +249,119 @@ export default function CustomerProfilePage({
               </div>
             </div>
 
-            {/* Quick action buttons */}
+            {/* Quick Actions */}
             <div className="flex items-center gap-2">
-              <Link
-                href={`/assistant?q=Summarize customer ${customer.firstName} ${customer.lastName}`}
-                className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-400 transition-colors shadow-sm"
+              <Button
+                onClick={handleGenerateAI}
+                disabled={generatingAI}
+                variant="outline"
+                size="sm"
+                className="gap-2 bg-white shadow-sm"
               >
-                <Bot className="w-4 h-4" /> Ask Copilot
-              </Link>
+                <Sparkles className={`w-3.5 h-3.5 text-amber-500 ${generatingAI ? "animate-spin" : ""}`} />
+                <span>{generatingAI ? "Analyzing with Gemini..." : "Refresh AI Insights"}</span>
+              </Button>
+              <Button asChild variant="accent" size="sm" className="gap-2 shadow-sm">
+                <Link href={`/assistant?q=Summarize customer ${customer.firstName} ${customer.lastName}`}>
+                  <Bot className="w-3.5 h-3.5" />
+                  <span>Ask Copilot</span>
+                </Link>
+              </Button>
             </div>
           </div>
 
           {/* Tags bar */}
-          <div className="mt-6 pt-6 border-t border-slate-100 flex flex-wrap items-center gap-2">
+          <div className="mt-5 pt-5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-semibold text-slate-400 flex items-center gap-1 mr-1">
               <Tag className="w-3.5 h-3.5" /> Tags:
             </span>
             {tagsList.map((tag, idx) => (
-              <span
-                key={idx}
-                className="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
-              >
+              <Badge key={idx} variant="secondary" className="text-xs font-normal">
                 {tag}
-              </span>
+              </Badge>
             ))}
             {addingTag ? (
-              <div className="inline-flex items-center gap-1">
-                <input
+              <div className="inline-flex items-center gap-1.5 ml-1">
+                <Input
                   type="text"
                   placeholder="New tag..."
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  className="px-2 py-0.5 text-xs bg-slate-50 border border-slate-300 rounded"
+                  className="h-7 w-28 text-xs px-2"
                 />
-                <button
-                  onClick={handleAddTag}
-                  className="px-2 py-0.5 text-xs bg-slate-900 text-white rounded font-medium"
-                >
+                <Button onClick={handleAddTag} size="sm" className="h-7 px-2.5 text-xs">
                   Save
-                </button>
-                <button
-                  onClick={() => setAddingTag(false)}
-                  className="px-1.5 py-0.5 text-xs text-slate-500"
-                >
+                </Button>
+                <Button onClick={() => setAddingTag(false)} variant="ghost" size="sm" className="h-7 px-2 text-xs">
                   Cancel
-                </button>
+                </Button>
               </div>
             ) : (
-              <button
+              <Button
                 onClick={() => setAddingTag(true)}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-slate-500 hover:text-slate-900 px-2 gap-1"
               >
                 <Plus className="w-3 h-3" /> Add Tag
-              </button>
+              </Button>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* 360 Core Metric Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-medium text-slate-500 block">Lifetime Spend (LTV)</span>
-            <span className="text-2xl font-extrabold text-slate-900 mt-1 block">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <Card className="p-4 shadow-sm">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 block">Lifetime Spend (LTV)</span>
+            <span className="text-xl font-bold tracking-tight text-slate-900 mt-1 block">
               {formatCurrency(customer.totalSpend)}
             </span>
-          </div>
+          </Card>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-medium text-slate-500 block">Orders Completed</span>
-            <span className="text-2xl font-extrabold text-slate-900 mt-1 block">
+          <Card className="p-4 shadow-sm">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 block">Orders Completed</span>
+            <span className="text-xl font-bold tracking-tight text-slate-900 mt-1 block">
               {customer.ordersCount}
             </span>
-          </div>
+          </Card>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-medium text-slate-500 block">Average Order Value</span>
-            <span className="text-2xl font-extrabold text-slate-900 mt-1 block">
+          <Card className="p-4 shadow-sm">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 block">Average Order Value</span>
+            <span className="text-xl font-bold tracking-tight text-slate-900 mt-1 block">
               {formatCurrency(customer.averageOrderValue)}
             </span>
-          </div>
+          </Card>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-medium text-slate-500 block">Recency (Inactivity)</span>
-            <span className="text-2xl font-extrabold text-slate-900 mt-1 block">
+          <Card className="p-4 shadow-sm">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 block">Inactivity Gap</span>
+            <span className="text-xl font-bold tracking-tight text-slate-900 mt-1 block">
               {customer.rfmRecencyDays !== null ? `${customer.rfmRecencyDays} days` : "N/A"}
             </span>
-          </div>
+          </Card>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-xs font-medium text-slate-500 block">Deterministic RFM</span>
-            <span className="text-2xl font-extrabold text-slate-900 mt-1 block font-mono">
+          <Card className="p-4 shadow-sm col-span-2 sm:col-span-1">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 block">RFM Quintile</span>
+            <span className="text-xl font-bold tracking-tight text-slate-900 mt-1 block font-mono">
               {customer.rfmScore || "N/A"}
             </span>
-          </div>
+          </Card>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 mb-6 gap-6">
+        <div className="flex border-b border-slate-200 gap-6">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === "overview"
                 ? "border-amber-500 text-amber-600"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <Sparkles className="w-4 h-4" /> AI Insights & Intelligence
+            <Sparkles className="w-4 h-4" /> AI Insights & Recommendations
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === "orders"
                 ? "border-amber-500 text-amber-600"
                 : "border-transparent text-slate-500 hover:text-slate-800"
@@ -324,23 +371,23 @@ export default function CustomerProfilePage({
           </button>
           <button
             onClick={() => setActiveTab("timeline")}
-            className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === "timeline"
                 ? "border-amber-500 text-amber-600"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <MessageSquare className="w-4 h-4" /> Communications & Workflows
+            <MessageSquare className="w-4 h-4" /> Communications Feed
           </button>
           <button
             onClick={() => setActiveTab("notes")}
-            className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+            className={`pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === "notes"
                 ? "border-amber-500 text-amber-600"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <FileText className="w-4 h-4" /> Internal Notes ({customer.notes?.length || 0})
+            <FileText className="w-4 h-4" /> Team Notes ({customer.notes?.length || 0})
           </button>
         </div>
 
@@ -348,180 +395,184 @@ export default function CustomerProfilePage({
         {activeTab === "overview" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* AI Summary Card */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-              <div className="flex items-center gap-2 text-slate-900 font-bold mb-3">
-                <Sparkles className="w-5 h-5 text-amber-500" />
-                <h2>Executive Customer Summary</h2>
-              </div>
-              <p className="text-slate-700 text-sm leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
-                {latestInsight?.summary || "No AI summary generated yet."}
-              </p>
-
-              {/* Churn Risk Rationale */}
-              <div className="mt-6">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Churn Risk Evaluation
-                </h3>
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
-                  {customer.churnRisk === "high" ? (
-                    <Flame className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-                  ) : (
-                    <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                  )}
-                  <div>
-                    <span className="font-semibold text-sm capitalize text-slate-900 block">
-                      {customer.churnRisk} Churn Risk
-                    </span>
-                    <span className="text-xs text-slate-600 mt-0.5 block">
-                      {customer.churnReason || "Regular engagement within store norms."}
-                    </span>
-                  </div>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2 text-slate-900 font-bold">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <CardTitle className="text-base font-bold">Executive AI Summary</CardTitle>
                 </div>
-              </div>
+                <CardDescription className="text-xs">
+                  Grounded in actual order recency and store LTV
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <p className="text-slate-700 text-xs sm:text-sm leading-relaxed bg-slate-50/80 p-4 rounded-xl border border-slate-100">
+                  {latestInsight?.summary || "Click 'Refresh AI Insights' above to generate with Google Gemini."}
+                </p>
 
-              {/* Quantitative Evidence */}
-              {churnEvidenceList.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Evidence & Underlying Metrics
+                {/* Churn Risk Rationale */}
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    Churn Risk Evaluation
                   </h3>
-                  <div className="space-y-2">
-                    {churnEvidenceList.map((item: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-100"
-                      >
-                        <span className="font-medium text-slate-700">{item.metric}:</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-slate-900 font-semibold">{item.value}</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-700">
-                            {item.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
+                    {customer.churnRisk === "high" ? (
+                      <Flame className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                    ) : (
+                      <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <span className="font-semibold text-xs sm:text-sm capitalize text-slate-900 block">
+                        {customer.churnRisk} Churn Risk
+                      </span>
+                      <span className="text-xs text-slate-600 mt-0.5 block">
+                        {customer.churnReason || "Healthy transaction cadence within expected store norms."}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* Quantitative Evidence Benchmarks */}
+                {churnEvidenceList.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                      Grounded Evidence Benchmarks
+                    </h3>
+                    <div className="space-y-1.5">
+                      {churnEvidenceList.map((item: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-slate-50/70 border border-slate-100"
+                        >
+                          <span className="font-medium text-slate-700">{item.metric}:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-slate-900 font-semibold">{item.value}</span>
+                            <Badge variant="outline" className="text-[10px] h-4">
+                              {item.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Next Best Action Card */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
+            <Card className="shadow-sm flex flex-col justify-between">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-900 font-bold">
-                    <Zap className="w-5 h-5 text-amber-500" />
-                    <h2>Explainable Next-Best-Action</h2>
+                    <Zap className="w-4 h-4 text-amber-500" />
+                    <CardTitle className="text-base font-bold">Explainable Next-Best-Action</CardTitle>
                   </div>
                   {latestInsight?.confidenceScore && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    <Badge variant="success" className="text-xs font-medium">
                       {Math.round(latestInsight.confidenceScore * 100)}% Confidence
-                    </span>
+                    </Badge>
                   )}
                 </div>
+                <CardDescription className="text-xs">
+                  Prescriptive intervention based on segment indicators
+                </CardDescription>
+              </CardHeader>
 
-                <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-200/60 mb-4">
-                  <h3 className="text-base font-bold text-slate-900 mb-1">
-                    {latestInsight?.nextBestAction || "Regular Engagement Protocol"}
+              <CardContent className="space-y-4">
+                <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200/60">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
+                    {latestInsight?.nextBestAction || "Standard Retention Protocol"}
                   </h3>
                   <p className="text-xs text-slate-600 leading-relaxed">
                     {latestInsight?.actionRationale ||
-                      "Continue standard post-purchase tracking and customer check-in."}
+                      "Regular automated post-purchase updates and scheduled marketing newsletters."}
                   </p>
                 </div>
 
                 {latestInsight?.suggestedCommunication && (
                   <div>
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                       AI Generated Outreach Draft
                     </h3>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 whitespace-pre-wrap max-h-56 overflow-y-auto">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 whitespace-pre-wrap max-h-48 overflow-y-auto">
                       {latestInsight.suggestedCommunication}
                     </div>
                   </div>
                 )}
-              </div>
+              </CardContent>
 
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-500">
-                  Requires human review prior to external dispatch
+              <CardFooter className="border-t border-slate-100 flex items-center justify-between pt-4">
+                <span className="text-[11px] text-slate-400">
+                  Protected by AI Guardrails (Human Approval Required)
                 </span>
-                <Link
-                  href="/communications"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 shadow-sm transition-colors"
-                >
-                  <Send className="w-3.5 h-3.5 text-amber-400" /> Open Approval Queue
-                </Link>
-              </div>
-            </div>
+                <Button asChild size="sm" variant="default" className="gap-1.5">
+                  <Link href="/communications">
+                    <Send className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Open Approvals</span>
+                  </Link>
+                </Button>
+              </CardFooter>
+            </Card>
           </div>
         )}
 
         {/* Tab 2: Orders History */}
         {activeTab === "orders" && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {customer.orders?.length === 0 ? (
-              <div className="bg-white p-12 text-center rounded-xl border border-slate-200 text-slate-400">
+              <Card className="p-12 text-center text-slate-400">
                 No orders recorded for this customer yet.
-              </div>
+              </Card>
             ) : (
               customer.orders.map((order: any) => (
-                <div
-                  key={order.id}
-                  className="bg-white rounded-xl border border-slate-200 shadow-sm p-6"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <Card key={order.id} className="p-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                     <div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-base font-bold text-slate-900">
+                      <div className="flex items-center gap-2.5">
+                        <Link
+                          href={`/orders/${order.id}`}
+                          className="text-base font-bold text-slate-900 hover:text-amber-600 transition-colors"
+                        >
                           {order.orderNumber}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize bg-slate-100 text-slate-800">
+                        </Link>
+                        <Badge variant="outline" className="capitalize text-[10px]">
                           {order.status}
-                        </span>
+                        </Badge>
                       </div>
-                      <span className="text-xs text-slate-500 mt-1 block">
+                      <span className="text-xs text-slate-500 mt-0.5 block">
                         Placed on {formatDateTime(order.dateCreated)}
                         {order.paymentMethodTitle && ` via ${order.paymentMethodTitle}`}
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-lg font-extrabold text-slate-900">
+                      <span className="text-base font-bold text-slate-900 block">
                         {formatCurrency(order.total)}
                       </span>
                     </div>
                   </div>
 
                   {/* Line Items */}
-                  <div className="mt-4">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                      Line Items
-                    </h4>
-                    <div className="divide-y divide-slate-100">
-                      {order.lineItems?.map((item: any) => (
-                        <div
-                          key={item.id}
-                          className="py-2 flex items-center justify-between text-sm"
-                        >
-                          <div>
-                            <span className="font-medium text-slate-800">{item.name}</span>
-                            {item.sku && (
-                              <span className="text-xs text-slate-400 ml-2">SKU: {item.sku}</span>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <span className="text-slate-500 text-xs mr-3">
-                              {item.quantity} × {formatCurrency(item.price)}
-                            </span>
-                            <span className="font-semibold text-slate-900">
-                              {formatCurrency(item.total)}
-                            </span>
-                          </div>
+                  <div className="mt-3 divide-y divide-slate-100">
+                    {order.lineItems?.map((item: any) => (
+                      <div key={item.id} className="py-2 flex items-center justify-between text-xs">
+                        <div>
+                          <span className="font-medium text-slate-800">{item.name}</span>
+                          {item.sku && (
+                            <span className="text-slate-400 ml-2">SKU: {item.sku}</span>
+                          )}
                         </div>
-                      ))}
-                    </div>
+                        <div className="text-right">
+                          <span className="text-slate-500 mr-2">
+                            {item.quantity} × {formatCurrency(item.price)}
+                          </span>
+                          <span className="font-semibold text-slate-900">
+                            {formatCurrency(item.total)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </Card>
               ))
             )}
           </div>
@@ -529,99 +580,103 @@ export default function CustomerProfilePage({
 
         {/* Tab 3: Timeline & Communications */}
         {activeTab === "timeline" && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-            <h3 className="text-base font-bold text-slate-900 mb-4">Customer Interaction Feed</h3>
-            <div className="space-y-4">
+          <Card className="p-6 shadow-sm">
+            <CardHeader className="p-0 pb-4">
+              <CardTitle className="text-base font-bold">Interaction History</CardTitle>
+              <CardDescription className="text-xs">
+                All communications and workflow executions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 space-y-3">
               {customer.communications?.length === 0 ? (
-                <p className="text-sm text-slate-400">No interaction history recorded yet.</p>
+                <p className="text-sm text-slate-400 py-6 text-center">No interaction history recorded yet.</p>
               ) : (
                 customer.communications.map((com: any) => (
                   <div
                     key={com.id}
-                    className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-start justify-between gap-4"
+                    className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-100 flex items-start justify-between gap-3 text-xs"
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-slate-200 text-slate-800">
+                        <Badge variant="secondary" className="uppercase text-[10px] h-4">
                           {com.channel}
-                        </span>
-                        <span className="text-xs text-slate-500 capitalize">{com.direction}</span>
-                        <span className="text-xs text-slate-400">• {formatDateTime(com.createdAt)}</span>
+                        </Badge>
+                        <span className="text-slate-500 capitalize">{com.direction}</span>
+                        <span className="text-slate-400">• {formatDateTime(com.createdAt)}</span>
                       </div>
                       {com.subject && (
-                        <h4 className="text-sm font-semibold text-slate-900 mt-2">{com.subject}</h4>
+                        <h4 className="font-semibold text-slate-900 mt-1.5">{com.subject}</h4>
                       )}
-                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">{com.content}</p>
+                      <p className="text-slate-600 mt-1 leading-relaxed">{com.content}</p>
                     </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
-                        com.status === "completed"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
+                    <Badge variant={com.status === "completed" ? "success" : "warning"} className="capitalize text-[10px]">
                       {com.status}
-                    </span>
+                    </Badge>
                   </div>
                 ))
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Tab 4: Internal Notes */}
         {activeTab === "notes" && (
           <div className="space-y-6">
-            {/* Create Note Box */}
-            <form onSubmit={handleAddNote} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-              <h3 className="text-sm font-bold text-slate-900 mb-2">Add Internal Operator Note</h3>
-              <textarea
-                rows={3}
-                placeholder="Write internal team notes regarding preferences, support discussion, or customer context..."
-                value={noteContent}
-                onChange={(e) => setNoteContent(e.target.value)}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
-              />
-              <div className="flex justify-end mt-3">
-                <button
-                  type="submit"
-                  disabled={addingNote || !noteContent.trim()}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
-                >
-                  {addingNote ? "Saving..." : "Save Note"}
-                </button>
-              </div>
-            </form>
+            {/* Create Note Card */}
+            <Card className="p-5 shadow-sm">
+              <form onSubmit={handleAddNote} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">Add Internal Staff Note</h3>
+                  <span className="text-[11px] text-slate-400">Visible to CRM operators only</span>
+                </div>
+                <textarea
+                  rows={3}
+                  placeholder="Record customer preferences, account context, or call summary..."
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  className="w-full p-3 bg-slate-50/60 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={addingNote || !noteContent.trim()}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {addingNote ? "Saving..." : "Save Note"}
+                  </Button>
+                </div>
+              </form>
+            </Card>
 
             {/* Notes List */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {customer.notes?.length === 0 ? (
-                <div className="bg-white p-8 text-center rounded-xl border border-slate-200 text-slate-400">
-                  No internal notes added yet.
-                </div>
+                <Card className="p-8 text-center text-slate-400 text-xs">
+                  No internal notes recorded yet.
+                </Card>
               ) : (
                 customer.notes.map((note: any) => (
-                  <div
-                    key={note.id}
-                    className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start justify-between gap-4"
-                  >
+                  <Card key={note.id} className="p-4 shadow-sm flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold text-xs text-slate-900">{note.author}</span>
-                        <span className="text-xs text-slate-400">• {formatDateTime(note.createdAt)}</span>
+                        <span className="text-slate-400 text-xs">• {formatDateTime(note.createdAt)}</span>
                       </div>
-                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                         {note.content}
                       </p>
                     </div>
-                    <button
+                    <Button
                       onClick={() => handleDeleteNote(note.id)}
-                      className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-slate-400 hover:text-rose-600"
                       title="Delete note"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </Card>
                 ))
               )}
             </div>
