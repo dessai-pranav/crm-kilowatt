@@ -1,0 +1,197 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model StoreConfig {
+  id             String    @id @default(cuid())
+  storeUrl       String    @default("https://demo-woocommerce-store.local")
+  consumerKey    String    @default("ck_demo_key_kilowatt")
+  consumerSecret String    @default("cs_demo_secret_kilowatt")
+  webhookSecret  String?   @default("whsec_demo_secret_kilowatt")
+  isMockMode     Boolean   @default(true)
+  lastSyncAt     DateTime?
+  syncStatus     String    @default("idle")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Customer {
+  id                 String              @id @default(cuid())
+  wooCustomerId      Int?                @unique
+  email              String              @unique
+  firstName          String?
+  lastName           String?
+  phone              String?
+  avatarUrl          String?
+  totalSpend         Float               @default(0.0)
+  ordersCount        Int                 @default(0)
+  averageOrderValue  Float               @default(0.0)
+  firstOrderDate     DateTime?
+  lastOrderDate      DateTime?
+  rfmRecencyDays     Int?
+  rfmScore           String?
+  churnRisk          String              @default("low")
+  churnReason        String?
+  segment            String              @default("New")
+  tags               String?
+  billingAddress     String?
+  shippingAddress    String?
+  rawMetadata        String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  orders             Order[]
+  notes              CustomerNote[]
+  communications     Communication[]
+  aiInsights         AIInsight[]
+  workflowExecutions WorkflowExecution[]
+  auditLogs          AuditLog[]
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  wooOrderId         Int         @unique
+  orderNumber        String
+  customerId         String?
+  customer           Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  status             String      @default("processing")
+  currency           String      @default("USD")
+  total              Float       @default(0.0)
+  subtotal           Float       @default(0.0)
+  totalTax           Float       @default(0.0)
+  shippingTotal      Float       @default(0.0)
+  discountTotal      Float       @default(0.0)
+  paymentMethod      String?
+  paymentMethodTitle String?
+  dateCreated        DateTime    @default(now())
+  dateModified       DateTime?
+  dateCompleted      DateTime?
+  billing            String?
+  shipping           String?
+  rawMetadata        String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  lineItems          OrderItem[]
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  wooItemId    Int?
+  wooProductId Int?
+  name         String
+  sku          String?
+  quantity     Int     @default(1)
+  price        Float   @default(0.0)
+  subtotal     Float   @default(0.0)
+  total        Float   @default(0.0)
+}
+
+model CustomerSegment {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String?
+  ruleCriteria  String
+  customerCount Int      @default(0)
+  color         String   @default("blue")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  author     String   @default("Support Agent")
+  content    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Communication {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  channel    String   @default("email")
+  direction  String   @default("outbound")
+  subject    String?
+  content    String
+  status     String   @default("completed")
+  metadata   String?
+  createdAt  DateTime @default(now())
+}
+
+model Workflow {
+  id             String              @id @default(cuid())
+  name           String
+  description    String?
+  triggerEvent   String
+  conditions     String?
+  actionSteps    String
+  isActive       Boolean             @default(true)
+  executionCount Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  executions     WorkflowExecution[]
+}
+
+model WorkflowExecution {
+  id               String    @id @default(cuid())
+  workflowId       String
+  workflow         Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  entityId         String?
+  currentStepIndex Int       @default(0)
+  status           String    @default("running")
+  stepHistory      String?
+  delayedUntil     DateTime?
+  error            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model AIInsight {
+  id                     String    @id @default(cuid())
+  customerId             String
+  customer               Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  summary                String?
+  churnRisk              String?
+  churnScore             Float?
+  churnEvidence          String?
+  nextBestAction         String?
+  actionRationale        String?
+  suggestedCommunication String?
+  confidenceScore        Float?
+  modelUsed              String    @default("gemini-1.5-flash")
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model SyncLog {
+  id               String   @id @default(cuid())
+  source           String   @default("rest_api")
+  status           String   @default("success")
+  recordsProcessed Int      @default(0)
+  durationMs       Int      @default(0)
+  details          String?
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+}
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  action     String
+  entityType String?
+  entityId   String?
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  actor      String    @default("system")
+  details    String?
+  createdAt  DateTime  @default(now())
+}
